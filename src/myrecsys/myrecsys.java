@@ -8,7 +8,6 @@ public class myrecsys {
 	static HashMap<Integer, ArrayList<Rating>> testRatings;
 	static HashMap<Integer, ArrayList<Rating>> ratingsByUser;
 	static HashMap<Integer, ArrayList<Rating>> ratingsByMovie;
-	static HashMap<Integer, ArrayList<Rating>> predictedRatings;
 	
  	static double err = 0;
  	
