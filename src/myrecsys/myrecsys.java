@@ -66,17 +66,17 @@ public class myrecsys {
 	static void average() {
 		int count;											// count - Number of ratings about a given movie
 		double avg, total;									// total - Cumulative sum of rating values (1-5). avg - total/count 
-		for (int i : testRatings.keySet()) {				// for each movie in the test data
+		for (int movie : testRatings.keySet()) {				// for each movie in the test data
 			count = 0;
 			total = 0;
 			avg = 0;
-			if (ratingsByMovie.containsKey(i)) {			// if reviews for this movie also exist in the training data
-				for (Rating r : ratingsByMovie.get(i)) {	// get all reviews for this movie							
+			if (ratingsByMovie.containsKey(movie)) {			// if reviews for this movie also exist in the training data
+				for (Rating r : ratingsByMovie.get(movie)) {	// get all reviews for this movie							
 					total += r.getRating();					// add movie rating to total
 					count++;
 				} avg = total / count;						// calculate average
 							
-				for (Rating r : testRatings.get(i)) {		// for every test data review	
+				for (Rating r : testRatings.get(movie)) {		// for every test data review	
 					r.setPredicted(avg);					// add a predicted value to compare to the actual.
 				}
 			}
@@ -230,41 +230,133 @@ public class myrecsys {
 		}
 		
 		for (int movie : testRatings.keySet()) {
-			for (int other : ratingsByMovie.keySet()) {
-				ArrayList<Rating> tmp1 = ratingsByMovie.get(movie);
-				ArrayList<Rating> tmp2 = ratingsByMovie.get(other);
-				
-				if (tmp1.size() > tmp2.size()) {
-					tmp1 = ratingsByMovie.get(other);
-					tmp2 = ratingsByMovie.get(movie);
-				}
-				
-				for (Rating r1 : tmp1) {
-					for (Rating r2 : tmp2) {
-						if (r1.getUser() == r2.getUser()) {
-							aSqSum += r1.getRating() * r1.getRating();
-							bSqSum += r2.getRating() * r2.getRating();
-							ab += r1.getRating() * r2.getRating();
-							break;
+			if (ratingsByMovie.containsKey(movie)) {
+				for (int other : ratingsByMovie.keySet()) {
+					
+					if ((movie!=other) && (setMatrix[labels.get(movie)][labels.get(other)] == false)) {
+						aSqSum=0; bSqSum=0; ab=0;
+						
+						ArrayList<Rating> tmp1 = ratingsByMovie.get(movie);
+						ArrayList<Rating> tmp2 = ratingsByMovie.get(other);
+						
+						if (tmp1.size() > tmp2.size()) {
+							tmp1 = ratingsByMovie.get(other);
+							tmp2 = ratingsByMovie.get(movie);
 						}
+						
+						for (Rating r1 : tmp1) {
+							for (Rating r2 : tmp2) {
+								if (r1.getUser() == r2.getUser()) {
+									aSqSum += r1.getRating() * r1.getRating();
+									bSqSum += r2.getRating() * r2.getRating();
+									ab += r1.getRating() * r2.getRating();
+									break;
+								}
+							}
+						}
+						
+						if (ab > 0) {
+							denom = Math.sqrt(aSqSum) * Math.sqrt(bSqSum);
+							sim = ab/denom;
+							
+							// System.out.println(aSqSum + " | " + bSqSum + " | " + ab + " | " + sim);
+							matrix[labels.get(movie)][labels.get(other)] = sim;
+							matrix[labels.get(other)][labels.get(movie)] = sim;
+						}
+						
+						setMatrix[labels.get(movie)][labels.get(other)] = true;
+						setMatrix[labels.get(other)][labels.get(movie)] = true;
 					}
 				}
 				
-				if (ab > 0) {
-					denom = Math.sqrt(aSqSum) * Math.sqrt(bSqSum);
-					sim = ab/denom;
+				for (Rating r1 : testRatings.get(movie)) {
+					double simTotal=0, weightTotal=0;
 					
-					System.out.println(sim);
-					matrix[labels.get(movie)][labels.get(other)] = sim;
-					matrix[labels.get(other)][labels.get(movie)] = sim;
-				} 
+					int user = r1.getUser();						
+					if (ratingsByUser.containsKey(user)) {							// if this user exists in the training data
+						for (Rating r2 : ratingsByUser.get(user)) {					// for each review of this user in the training data
+							if (setMatrix[labels.get(movie)][labels.get(r2.getMovie())]==true) {	// if the similarity score is greater than zero 
+								simTotal += matrix[labels.get(movie)][labels.get(r2.getMovie())] * r2.getRating();
+								weightTotal += Math.abs(matrix[labels.get(movie)][labels.get(r2.getMovie())]);		//add the similarity score to the weight total.
+							}
+						} if (weightTotal>0) r1.setPredicted(simTotal/weightTotal);		// if the weightTotal isn't zero, set the new predicted value. 
+					}
+				}
 			}
 		}
 	}
 	
 	
 	static void itemAdCosine() {
+		double aSqSum=0, bSqSum=0, ab=0, denom=0, sim=0, avg=0;	
+		double[][] matrix = new double[ratingsByMovie.size()][ratingsByMovie.size()];
+		boolean[][] setMatrix = new boolean[ratingsByMovie.size()][ratingsByMovie.size()];
+		HashMap<Integer, Integer> labels = new HashMap<Integer, Integer>();
 		
+		for (int i=0; i < ratingsByMovie.size(); i++) {								
+			labels.put((int) ratingsByMovie.keySet().toArray()[i], i);				// add entry to labels mapping each user to an index by order of appearance
+		}
+		
+		for (int movie : testRatings.keySet()) {
+			if (ratingsByMovie.containsKey(movie)) {
+				avg=0;
+				
+				for (Rating r : ratingsByMovie.get(movie)) {
+					avg+=r.getRating();
+				} avg /= ratingsByMovie.get(movie).size();
+				
+				for (int other : ratingsByMovie.keySet()) {
+					
+					if ((movie!=other) && (setMatrix[labels.get(movie)][labels.get(other)] == false)) {
+						aSqSum=0; bSqSum=0; ab=0;
+						
+						ArrayList<Rating> tmp1 = ratingsByMovie.get(movie);
+						ArrayList<Rating> tmp2 = ratingsByMovie.get(other);
+						
+						if (tmp1.size() > tmp2.size()) {
+							tmp1 = ratingsByMovie.get(other);
+							tmp2 = ratingsByMovie.get(movie);
+						}
+						
+						for (Rating r1 : tmp1) {
+							for (Rating r2 : tmp2) {
+								if (r1.getUser() == r2.getUser()) {
+									aSqSum += (r1.getRating()-avg) * (r1.getRating()-avg);
+									bSqSum += (r2.getRating()-avg) * (r2.getRating()-avg);
+									ab += (r1.getRating()-avg) * (r2.getRating()-avg);
+									break;
+								}
+							}
+						}
+						
+						if (ab > 0) {
+							denom = Math.sqrt(aSqSum) * Math.sqrt(bSqSum);
+							sim = ab/denom;
+							
+							matrix[labels.get(movie)][labels.get(other)] = sim;
+							matrix[labels.get(other)][labels.get(movie)] = sim;
+						}
+						
+						setMatrix[labels.get(movie)][labels.get(other)] = true;
+						setMatrix[labels.get(other)][labels.get(movie)] = true;
+					}
+				}
+				
+				for (Rating r1 : testRatings.get(movie)) {
+					double simTotal=0, weightTotal=0;
+					
+					int user = r1.getUser();						
+					if (ratingsByUser.containsKey(user)) {							// if this user exists in the training data
+						for (Rating r2 : ratingsByUser.get(user)) {					// for each review of this user in the training data
+							if (setMatrix[labels.get(movie)][labels.get(r2.getMovie())]==true) {	// if the similarity score is greater than zero 
+								simTotal += matrix[labels.get(movie)][labels.get(r2.getMovie())] * r2.getRating();
+								weightTotal += Math.abs(matrix[labels.get(movie)][labels.get(r2.getMovie())]);		//add the similarity score to the weight total.
+							}
+						} if (weightTotal>0) r1.setPredicted(simTotal/weightTotal);		// if the weightTotal isn't zero, set the new predicted value. 
+					}
+				}
+			}
+		}
 	}
 	
 	
