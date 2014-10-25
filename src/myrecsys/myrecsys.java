@@ -221,9 +221,46 @@ public class myrecsys {
 	
 	
 	static void itemCosine() {
-		double aSqSum=0, bSqSum=0, ab=0, denom=0;
+		double aSqSum=0, bSqSum=0, ab=0, denom=0, sim=0;	
+		double[][] matrix = new double[ratingsByMovie.size()][ratingsByMovie.size()];
+		boolean[][] setMatrix = new boolean[ratingsByMovie.size()][ratingsByMovie.size()];
+		HashMap<Integer, Integer> labels = new HashMap<Integer, Integer>();
 		
+		for (int i=0; i < ratingsByMovie.size(); i++) {								
+			labels.put((int) ratingsByMovie.keySet().toArray()[i], i);				// add entry to labels mapping each user to an index by order of appearance
+		}
 		
+		for (int movie : testRatings.keySet()) {
+			for (int other : ratingsByMovie.keySet()) {
+				ArrayList<Rating> tmp1 = ratingsByMovie.get(movie);
+				ArrayList<Rating> tmp2 = ratingsByMovie.get(other);
+				
+				if (tmp1.size() > tmp2.size()) {
+					tmp1 = ratingsByMovie.get(other);
+					tmp2 = ratingsByMovie.get(movie);
+				}
+				
+				for (Rating r1 : tmp1) {
+					for (Rating r2 : tmp2) {
+						if (r1.getUser() == r2.getUser()) {
+							aSqSum += r1.getRating() * r1.getRating();
+							bSqSum += r2.getRating() * r2.getRating();
+							ab += r1.getRating() * r2.getRating();
+							break;
+						}
+					}
+				}
+				
+				if (ab > 0) {
+					denom = Math.sqrt(aSqSum) * Math.sqrt(bSqSum);
+					sim = ab/denom;
+					
+					System.out.println(sim);
+					matrix[labels.get(movie)][labels.get(other)] = sim;
+					matrix[labels.get(other)][labels.get(movie)] = sim;
+				} 
+			}
+		}
 	}
 	
 	
